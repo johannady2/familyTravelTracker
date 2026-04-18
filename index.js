@@ -18,7 +18,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
 let currentUserId = 1;
-
+let currentUserColor = "teal";
 /*let users = [
   { id: 1, name: "Angela", color: "teal" },
   { id: 2, name: "Jack", color: "powderblue" },
@@ -41,24 +41,26 @@ const getAllUsers = async () =>
   return allUsers;
 };
 
-async function checkVisisted() {
-  const result = await db.query("SELECT country_code FROM visited_countries");
+async function getUsersData() {
+  const result = await db.query("SELECT users.color, visited_countries.country_code FROM users JOIN visited_countries ON users.id = user_id WHERE user_id = $1", [currentUserId]);
   let countries = [];
   result.rows.forEach((country) => {
     countries.push(country.country_code);
   });
-  return countries;
+  let theColor = result.rows[0].color;
+  let theCurrentUserID = result.rows[0].id;
+  return {theCurrentUserID,theColor, countries} ;
 }
 app.get("/", async (req, res) => {
 
 
   let users = await getAllUsers();
-  const countries = await checkVisisted();
+  const{theCurrentUserID,theColor, countries} = await getUsersData();
   res.render("index.ejs", {
     countries: countries,
     total: countries.length,
     users: users,
-    color: "teal",
+    color: theColor,
   });
 });
 
@@ -89,21 +91,16 @@ app.post("/add", async (req, res) => {
 app.post("/user", async (req, res) => {
 
 currentUserId = req.body.user;
-   let usersData = await db.query("SELECT users.id , users.name, users.color, visited_countries.country_code FROM users JOIN visited_countries ON users.id = user_id WHERE user_id = $1", [currentUserId]);
 
-  let allUsersData = [];
-  usersData.rows.forEach((user) => {
-    allUsersData.push(user);
-  });
+   //let usersData = await db.query("SELECT users.id , users.name, users.color, visited_countries.country_code FROM users JOIN visited_countries ON users.id = user_id WHERE user_id = $1", [currentUserId]);
+let usersData = await getUsersData();
 
-  console.log(allUsersData);
 
-  res.render("index.ejs", {
-    countries: allUsersData.map((user) => user.country_code),
-    total: allUsersData.length,
-    users: allUsersData,
-    color: allUsersData[0]?.color || "teal",
-  });
+currentUserColor = usersData.theColor;
+
+ 
+
+  res.redirect("/");
 });
 
 app.post("/new", async (req, res) => {
