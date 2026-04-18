@@ -42,15 +42,32 @@ const getAllUsers = async () =>
 };
 
 async function getUsersData() {
-  const result = await db.query("SELECT users.color, visited_countries.country_code FROM users JOIN visited_countries ON users.id = user_id WHERE user_id = $1", [currentUserId]);
-  let countries = [];
-  result.rows.forEach((country) => {
-    countries.push(country.country_code);
-  });
-  let theColor = result.rows[0].color;
-  let theCurrentUserID = result.rows[0].id;
-  return {theCurrentUserID,theColor, countries} ;
+  const result = await db.query(
+    `SELECT users.id,
+            users.color,
+            visited_countries.country_code
+     FROM users
+     LEFT JOIN visited_countries
+       ON users.id = visited_countries.user_id
+     WHERE users.id = $1`,
+    [currentUserId]
+  );
+
+  // Always returns at least one row because of LEFT JOIN
+  const row0 = result.rows[0];
+
+  const theCurrentUserID = row0?.id ?? currentUserId;
+  const theColor = row0?.color ?? "teal";
+
+  const countries = result.rows
+    .map(r => r.country_code)
+    .filter(code => code !== null);
+
+  return { theCurrentUserID, theColor, countries };
 }
+
+
+
 app.get("/", async (req, res) => {
 
 
@@ -77,9 +94,11 @@ app.post("/add", async (req, res) => {
     const countryCode = data.country_code;
     try {
       await db.query(
-        "INSERT INTO visited_countries (country_code) VALUES ($1)",
-        [countryCode]
+        "INSERT INTO visited_countries (country_code, user_id) VALUES ($1, $2)",
+        [countryCode, currentUserId]
       );
+
+
       res.redirect("/");
     } catch (err) {
       console.log(err);
@@ -101,7 +120,9 @@ currentUserId = req.body.user;
    //let usersData = await db.query("SELECT users.id , users.name, users.color, visited_countries.country_code FROM users JOIN visited_countries ON users.id = user_id WHERE user_id = $1", [currentUserId]);
 let usersData = await getUsersData();
 
-currentUserColor = usersData.theColor;
+
+
+currentUserColor = req.body.color;
   res.redirect("/");
 }
 });
@@ -109,6 +130,13 @@ currentUserColor = usersData.theColor;
 app.post("/new", async (req, res) => {
   //Hint: The RETURNING keyword can return the data that was inserted.
   //https://www.postgresql.org/docs/current/dml-returning.html
+
+  const name = req.body.name;
+  const color = req.body.color;
+
+  const result  = await db.query("INSERT INTO users (name, color) VALUES ($1, $2) RETURNING id", [name, color]);
+
+  res.redirect("/");
 });
 
 app.listen(port, () => {
