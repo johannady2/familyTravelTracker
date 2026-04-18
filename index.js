@@ -89,18 +89,21 @@ app.post("/add", async (req, res) => {
   }
 });
 app.post("/user", async (req, res) => {
+if(req.body.add === "new"){
+  res.render("new.ejs");
+}
+else
+{
+  currentUserId = req.body.user;
 
 currentUserId = req.body.user;
 
    //let usersData = await db.query("SELECT users.id , users.name, users.color, visited_countries.country_code FROM users JOIN visited_countries ON users.id = user_id WHERE user_id = $1", [currentUserId]);
 let usersData = await getUsersData();
 
-
 currentUserColor = usersData.theColor;
-
- 
-
   res.redirect("/");
+}
 });
 
 app.post("/new", async (req, res) => {
